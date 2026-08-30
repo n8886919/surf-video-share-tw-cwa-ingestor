@@ -43,6 +43,15 @@ back, reinstall the prior Git tag/version and restore the App backup. A restore
 recovers last-success metadata and pending normalized batches, but intentionally
 does not contain any historical ZIP archive.
 
+### Worker compatibility
+
+App `0.1.1` is locked to Worker `0.3.0` contract
+`cwa-forecast-ingestion-v1`. Both repositories generate JSON Schema from the
+live Zod validator and assert fingerprint
+`6316768333f715908074526c113f5ddf01a508d55dae93eb01032867575fac30`, plus
+the refinements that JSON Schema cannot encode. Any request-field or bound
+change must update both repositories as a coordinated versioned release.
+
 ## Operational limitation
 
 If Home Assistant is offline while CWA replaces an immutable forecast run, that

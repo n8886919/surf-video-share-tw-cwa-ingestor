@@ -1,0 +1,43 @@
+name: Verify
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the exact pushed commit
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+        run: |
+          git clone --filter=blob:none "https://github.com/${REPOSITORY}.git" source
+          git -C source checkout --detach "${REVISION}"
+
+      - name: Verify TypeScript, tests, build, and dependencies
+        working-directory: source/cwa_ingestor
+        run: |
+          npm ci
+          npm run verify
+          npm audit --audit-level=low
+
+      - name: Build and inspect the Home Assistant aarch64 image
+        working-directory: source/cwa_ingestor
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --build-arg BUILD_FROM=ghcr.io/home-assistant/aarch64-base:3.24 \
+            --build-arg BUILD_ARCH=aarch64 \
+            --build-arg BUILD_VERSION=0.1.1 \
+            --load \
+            --tag cwa-ingestor:0.1.1-arm64 \
+            .
+          test "$(docker image inspect --format '{{.Architecture}}' cwa-ingestor:0.1.1-arm64)" = "arm64"
+          test "$(docker image inspect --format '{{index .Config.Labels "io.hass.arch"}}' cwa-ingestor:0.1.1-arm64)" = "aarch64"
+          test "$(docker image inspect --format '{{index .Config.Labels "io.hass.type"}}' cwa-ingestor:0.1.1-arm64)" = "app"
+          test "$(docker image inspect --format '{{index .Config.Labels "io.hass.version"}}' cwa-ingestor:0.1.1-arm64)" = "0.1.1"

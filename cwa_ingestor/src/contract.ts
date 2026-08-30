@@ -6,6 +6,11 @@ import {
   INGESTION_BATCH_SIZE,
 } from "./constants.js";
 
+export const CWA_FORECAST_INGESTION_CONTRACT = {
+  version: "cwa-forecast-ingestion-v1",
+  jsonSchemaSha256: "6316768333f715908074526c113f5ddf01a508d55dae93eb01032867575fac30",
+} as const;
+
 const isoInstantSchema = z.string().datetime({ offset: true });
 const longitudeSchema = z.number().finite().min(-180).max(180);
 const latitudeSchema = z.number().finite().min(-90).max(90);
