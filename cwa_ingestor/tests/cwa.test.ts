@@ -6,6 +6,7 @@ import {
   parseCwaTidePayload,
   parseCwaWaveArchive,
 } from "../src/cwa.js";
+import { CWA_TIDE_LOCATION_BY_SPOT_ID, CWA_TIDE_LOCATION_IDS } from "../src/constants.js";
 import { currentCwaWaveFixture, cwaWaveFixture, testSpot, tideFixture } from "./fixtures.js";
 
 describe("CWA parser", () => {
@@ -26,7 +27,7 @@ describe("CWA parser", () => {
   it("preserves tide interpolation and both official provenance datasets", () => {
     const points = parseCwaWaveArchive(cwaWaveFixture(), [testSpot]).points;
     const tides = parseCwaTidePayload(tideFixture());
-    expect(interpolateCwaTide(tides, "2026-08-25T03:00:00.000Z")).toEqual({
+    expect(interpolateCwaTide(tides.get("O00400") ?? [], "2026-08-25T03:00:00.000Z")).toEqual({
       heightMeters: 0.7,
       slopeMetersPerHour: 0.2618,
       state: "rising",
@@ -39,6 +40,19 @@ describe("CWA parser", () => {
         tide: { dataset: "F-A0021-001", locationId: "O00400" },
       },
     });
+  });
+
+  it("uses the approved tide location independently for every active spot", () => {
+    const basePoint = parseCwaWaveArchive(cwaWaveFixture(), [testSpot]).points[0]!;
+    const points = Object.entries(CWA_TIDE_LOCATION_BY_SPOT_ID).map(([spotId]) => ({
+      ...basePoint,
+      spot: { ...basePoint.spot, id: spotId },
+    }));
+    const snapshots = buildCwaSnapshots(points, parseCwaTidePayload(tideFixture()));
+    expect(snapshots).toHaveLength(8);
+    expect(snapshots.map((snapshot) => [snapshot.spotId, snapshot.provenance.tide?.locationId]))
+      .toEqual(Object.entries(CWA_TIDE_LOCATION_BY_SPOT_ID));
+    expect(snapshots.every((snapshot) => snapshot.tideHeight === 0.7)).toBe(true);
   });
 
   it("supports the current PascalCase CWA XML schema", () => {
@@ -57,8 +71,11 @@ describe("CWA parser", () => {
 
   it("streams the ZIP and reports bounded diagnostics", async () => {
     const archive = cwaWaveFixture();
-    const fetchImpl = async (input: string | URL | Request) => {
-      const url = new URL(input instanceof Request ? input.url : input);
+    let tideRequest: Request | null = null;
+    const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      const url = new URL(request.url);
+      if (url.pathname.includes("F-A0021-001")) tideRequest = request;
       return url.pathname.includes("F-A0020-001")
         ? new Response(Uint8Array.from(archive).buffer, { headers: { "content-type": "application/zip" } })
         : Response.json(tideFixture());
@@ -67,6 +84,9 @@ describe("CWA parser", () => {
     expect(result.snapshots).toHaveLength(1);
     expect(result.diagnostics).toMatchObject({ archiveBytes: archive.byteLength, forecastFiles: 3 });
     expect(result.warnings).toEqual([]);
+    expect(new URL(tideRequest!.url).searchParams.get("Authorization")).toBeNull();
+    expect(new URL(tideRequest!.url).searchParams.get("LocationId")).toBe(CWA_TIDE_LOCATION_IDS.join(","));
+    expect(tideRequest!.headers.get("Authorization")).toBe("test-key");
   });
 
   it("rejects a declared oversized archive before parsing", async () => {

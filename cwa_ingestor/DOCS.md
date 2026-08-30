@@ -26,6 +26,12 @@ and warning/error codes. They never include options, authorization headers,
 signatures, request bodies, or query strings. A `stale_success` warning means no
 successful ingestion has completed for more than seven hours.
 
+The App requests the six approved F-A0021-001 locations once per run and maps
+them to the eight active spots: `O00400` for 烏石港／雙獅, `10002030` for 無尾,
+`O01200` for 蜜月灣, `O01300` for 金樽／北東河, `B02400` for 漁光島, and
+`O00700` for 南灣. The CWA key is sent only in the HTTPS Authorization header.
+The Worker independently enforces the same mapping before any D1 write.
+
 ## Installation and update
 
 Add this GitHub repository to **Settings → Apps → App store → Repositories**,
@@ -45,12 +51,15 @@ does not contain any historical ZIP archive.
 
 ### Worker compatibility
 
-App `0.1.2` is locked to Worker `0.5.0` contract
-`cwa-forecast-ingestion-v1`. Both repositories generate JSON Schema from the
-live Zod validator and assert fingerprint
-`6316768333f715908074526c113f5ddf01a508d55dae93eb01032867575fac30`, plus
-the refinements that JSON Schema cannot encode. Any request-field or bound
-change must update both repositories as a coordinated versioned release.
+App `0.2.0` sends Worker contract `cwa-forecast-ingestion-v2`. Both repositories
+generate JSON Schema from the live Zod validator and assert fingerprint
+`24eeaed68e8e358880f43c127dde715af5c36b7af80a5667d58a67481d01c296`, plus
+tide-mapping fingerprint
+`217b188f9b366cb50aad2566135c5c04cab60c593d5a553306b33ba25714a5e3`
+and the refinements that JSON Schema cannot encode. The Worker temporarily
+accepts persisted v1 batches, so deploy the Worker before updating the App.
+Any request-field, bound, or mapping change must update both repositories as a
+coordinated versioned release.
 
 ## Operational limitation
 

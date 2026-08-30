@@ -1,7 +1,12 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
-import { cwaIngestionBatchSchema, type CwaIngestionBatch } from "./contract.js";
+import {
+  acceptedCwaIngestionBatchSchema,
+  cwaIngestionBatchSchema,
+  type AcceptedCwaIngestionBatch,
+  type CwaIngestionBatch,
+} from "./contract.js";
 
 const stateSchema = z.object({
   version: z.literal(1),
@@ -11,7 +16,7 @@ const stateSchema = z.object({
   lastModelRunAt: z.string().datetime({ offset: true }).nullable(),
   firstValidAt: z.string().datetime({ offset: true }).nullable(),
   lastValidAt: z.string().datetime({ offset: true }).nullable(),
-  pendingBatches: z.array(cwaIngestionBatchSchema).max(32),
+  pendingBatches: z.array(acceptedCwaIngestionBatchSchema).max(32),
 }).strict();
 
 export type RunnerState = z.infer<typeof stateSchema>;
@@ -60,11 +65,11 @@ export class StateRepository {
   }
 }
 
-export function pendingBatches(snapshots: CwaIngestionBatch["snapshots"]): CwaIngestionBatch[] {
+export function pendingBatches(snapshots: CwaIngestionBatch["snapshots"]): AcceptedCwaIngestionBatch[] {
   const batches: CwaIngestionBatch[] = [];
   for (let offset = 0; offset < snapshots.length; offset += 5) {
     batches.push(cwaIngestionBatchSchema.parse({
-      version: 1,
+      version: 2,
       snapshots: snapshots.slice(offset, offset + 5),
     }));
   }

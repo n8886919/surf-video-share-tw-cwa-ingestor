@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
   CWA_FORECAST_INGESTION_CONTRACT,
+  acceptedCwaIngestionBatchSchema,
   cwaIngestionBatchSchema,
 } from "../src/contract.js";
+import { CWA_TIDE_LOCATION_BY_SPOT_ID } from "../src/constants.js";
 
 function snapshot() {
   return {
@@ -40,25 +42,36 @@ function snapshot() {
 }
 
 describe("Worker CWA ingestion contract parity", () => {
-  it("pins the complete v1 structural contract fingerprint", () => {
+  it("pins the complete v2 structural contract and tide mapping fingerprints", () => {
     const fingerprint = createHash("sha256")
       .update(JSON.stringify(z.toJSONSchema(cwaIngestionBatchSchema)))
       .digest("hex");
+    const tideMappingFingerprint = createHash("sha256")
+      .update(JSON.stringify(CWA_TIDE_LOCATION_BY_SPOT_ID))
+      .digest("hex");
     expect(CWA_FORECAST_INGESTION_CONTRACT).toEqual({
-      version: "cwa-forecast-ingestion-v1",
+      version: "cwa-forecast-ingestion-v2",
       jsonSchemaSha256: fingerprint,
+      tideMappingSha256: tideMappingFingerprint,
     });
   });
 
   it("pins refinements that JSON Schema cannot represent", () => {
-    expect(cwaIngestionBatchSchema.safeParse({ version: 1, snapshots: [snapshot()] }).success).toBe(true);
+    expect(cwaIngestionBatchSchema.safeParse({ version: 2, snapshots: [snapshot()] }).success).toBe(true);
     expect(cwaIngestionBatchSchema.safeParse({
-      version: 1,
+      version: 2,
       snapshots: [{ ...snapshot(), leadHours: 4 }],
     }).success).toBe(false);
     expect(cwaIngestionBatchSchema.safeParse({
-      version: 1,
+      version: 2,
       snapshots: [{ ...snapshot(), waveHeight: null, waveDirection: null, wavePeriod: null }],
     }).success).toBe(false);
+  });
+
+  it("keeps persisted v1 batches valid until they are retried", () => {
+    expect(acceptedCwaIngestionBatchSchema.safeParse({
+      version: 1,
+      snapshots: [snapshot()],
+    }).success).toBe(true);
   });
 });

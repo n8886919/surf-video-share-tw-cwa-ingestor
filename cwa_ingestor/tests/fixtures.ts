@@ -1,7 +1,7 @@
 import { strToU8, zipSync } from "fflate";
 
 export const testSpot = {
-  id: "spot_wushi",
+  id: "spot_wushi-harbor-north",
   slug: "wushi-harbor-north",
   latitude: 24.8731036,
   longitude: 121.8411446,
@@ -60,23 +60,31 @@ export function currentCwaWaveFixture(): Uint8Array {
 }
 
 export function tideFixture() {
+  const locations = [
+    ["O00400", 24.88, 121.846],
+    ["10002030", 24.5925, 121.8669],
+    ["O01200", 24.933, 121.886],
+    ["O01300", 22.956, 121.295],
+    ["B02400", 22.9699, 120.1525],
+    ["O00700", 21.959, 120.761],
+  ] as const;
   return {
     records: {
-      TideForecasts: [{
+      TideForecasts: locations.map(([LocationId, Latitude, Longitude]) => ({
         Location: {
-          LocationId: "O00400",
-          Latitude: 24.9,
-          Longitude: 121.85,
+          LocationId,
+          Latitude,
+          Longitude,
           TimePeriods: {
             Daily: [{
               Time: [
-                { DateTime: "2026-08-25T00:00:00+00:00", Tide: "乾潮", TideHeights: { AboveLocalMSL: "20" } },
-                { DateTime: "2026-08-25T06:00:00+00:00", Tide: "滿潮", TideHeights: { AboveLocalMSL: 120 } },
+                { DateTime: "2026-08-25T00:00:00+00:00", Tide: "\u4e7e\u6f6e", TideHeights: { AboveLocalMSL: "20" } },
+                { DateTime: "2026-08-25T06:00:00+00:00", Tide: "\u6eff\u6f6e", TideHeights: { AboveLocalMSL: 120 } },
               ],
             }],
           },
         },
-      }],
+      })),
     },
   };
 }

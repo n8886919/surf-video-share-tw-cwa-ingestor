@@ -3,10 +3,10 @@ import {
   SPOTS_PATH,
 } from "./constants.js";
 import {
-  cwaIngestionBatchSchema,
+  acceptedCwaIngestionBatchSchema,
   forecastSpotsResponseSchema,
   ingestionResultSchema,
-  type CwaIngestionBatch,
+  type AcceptedCwaIngestionBatch,
   type ForecastSpot,
   type IngestionResult,
 } from "./contract.js";
@@ -66,8 +66,8 @@ export class ForecastIngestionClient {
     return forecastSpotsResponseSchema.parse(await this.request(SPOTS_PATH, "GET")).spots;
   }
 
-  async ingestCwa(batch: CwaIngestionBatch): Promise<IngestionResult> {
-    const validated = cwaIngestionBatchSchema.parse(batch);
+  async ingestCwa(batch: AcceptedCwaIngestionBatch): Promise<IngestionResult> {
+    const validated = acceptedCwaIngestionBatchSchema.parse(batch);
     const result = ingestionResultSchema.parse(
       await this.request(CWA_INGESTION_PATH, "POST", JSON.stringify(validated)),
     );

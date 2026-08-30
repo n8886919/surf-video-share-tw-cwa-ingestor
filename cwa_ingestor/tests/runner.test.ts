@@ -19,6 +19,7 @@ describe("runner recovery", () => {
     const archive = cwaWaveFixture();
     let waveFetches = 0;
     let ingestionPosts = 0;
+    const submittedContracts: Array<{ version: number; tideLocationId: string | null }> = [];
     const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {
       const request = input instanceof Request ? input : new Request(input, init);
       const url = new URL(request.url);
@@ -32,10 +33,17 @@ describe("runner recovery", () => {
       if (url.pathname.includes("F-A0021-001")) return Response.json(tideFixture());
       if (url.pathname.endsWith("/forecast-ingestion/cwa")) {
         ingestionPosts += 1;
+        const body = JSON.parse(await request.text()) as {
+          version: number;
+          snapshots: Array<{ provenance: { tide: { locationId: string } | null } }>;
+        };
+        submittedContracts.push({
+          version: body.version,
+          tideLocationId: body.snapshots[0]?.provenance.tide?.locationId ?? null,
+        });
         if (ingestionPosts === 1) {
           return Response.json({ error: "TEMPORARY" }, { status: 503 });
         }
-        const body = JSON.parse(await request.text()) as { snapshots: unknown[] };
         return Response.json({ attempted: body.snapshots.length, inserted: body.snapshots.length, duplicates: 0 });
       }
       throw new Error(`unexpected test path ${url.pathname}`);
@@ -53,6 +61,10 @@ describe("runner recovery", () => {
     const result = await runner.runOnce(new Date("2026-08-30T00:01:00Z"));
     expect(result).toEqual({ attempted: 1, inserted: 1, duplicates: 0, resumedPending: true });
     expect(waveFetches).toBe(1);
+    expect(submittedContracts).toEqual([
+      { version: 2, tideLocationId: "O00400" },
+      { version: 2, tideLocationId: "O00400" },
+    ]);
     const restored = await new StateRepository(directory).load();
     expect(restored.pendingBatches).toEqual([]);
     expect(restored.lastSuccessAt).not.toBeNull();

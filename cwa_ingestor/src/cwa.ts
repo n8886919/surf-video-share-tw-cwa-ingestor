@@ -3,7 +3,8 @@ import { z } from "zod";
 import {
   CWA_MODEL,
   CWA_PROVIDER,
-  CWA_TIDE_LOCATION_ID,
+  CWA_TIDE_LOCATION_BY_SPOT_ID,
+  CWA_TIDE_LOCATION_IDS,
   CWA_TIDE_URL,
   CWA_WAVE_URL,
   MAX_ARCHIVE_BYTES,
@@ -56,6 +57,7 @@ interface CwaRunGroup {
 }
 
 export interface CwaTideEvent {
+  locationId: typeof CWA_TIDE_LOCATION_IDS[number];
   validAt: string;
   heightMeters: number;
   state: "high" | "low";
@@ -90,8 +92,8 @@ const tideResponseSchema = z.object({
     TideForecasts: z.array(z.object({
       Location: z.object({
         LocationId: z.string(),
-        Latitude: z.number(),
-        Longitude: z.number(),
+        Latitude: z.union([z.number(), z.string()]),
+        Longitude: z.union([z.number(), z.string()]),
         TimePeriods: z.object({
           Daily: z.array(z.object({
             Time: z.array(z.object({
@@ -320,27 +322,33 @@ export function parseCwaWaveArchive(
   return parser.finish();
 }
 
-export function parseCwaTidePayload(payload: unknown): CwaTideEvent[] {
+export function parseCwaTidePayload(payload: unknown): Map<string, CwaTideEvent[]> {
   const response = tideResponseSchema.parse(payload);
-  const location = response.records.TideForecasts
-    .map((forecast) => forecast.Location)
-    .find((candidate) => candidate.LocationId === CWA_TIDE_LOCATION_ID);
-  if (!location) throw new Error(`CWA tide response omitted ${CWA_TIDE_LOCATION_ID}`);
-
-  const events = location.TimePeriods.Daily.flatMap((daily) => daily.Time.flatMap((time) => {
-    const state = time.Tide === "滿潮" ? "high" : time.Tide === "乾潮" ? "low" : null;
-    const heightCentimeters = Number(time.TideHeights.AboveLocalMSL);
-    if (!state || !Number.isFinite(heightCentimeters)) return [];
-    return [{
-      validAt: isoInstant(time.DateTime, "tide valid time"),
-      heightMeters: heightCentimeters / 100,
-      state,
-      latitude: location.Latitude,
-      longitude: location.Longitude,
-    } satisfies CwaTideEvent];
+  const expectedIds = new Set<string>(CWA_TIDE_LOCATION_IDS);
+  return new Map(response.records.TideForecasts.flatMap((forecast) => {
+    const location = forecast.Location;
+    if (!expectedIds.has(location.LocationId)) return [];
+    const locationId = location.LocationId as typeof CWA_TIDE_LOCATION_IDS[number];
+    const latitude = Number(location.Latitude);
+    const longitude = Number(location.Longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+    const events = location.TimePeriods.Daily.flatMap((daily) => daily.Time.flatMap((time) => {
+      const state = time.Tide === "\u6eff\u6f6e" ? "high" : time.Tide === "\u4e7e\u6f6e" ? "low" : null;
+      const heightCentimeters = Number(time.TideHeights.AboveLocalMSL);
+      if (!state || !Number.isFinite(heightCentimeters)) return [];
+      return [{
+        locationId,
+        validAt: isoInstant(time.DateTime, "tide valid time"),
+        heightMeters: heightCentimeters / 100,
+        state,
+        latitude,
+        longitude,
+      } satisfies CwaTideEvent];
+    }));
+    const unique = new Map(events.map((event) => [event.validAt, event]));
+    const sorted = Array.from(unique.values()).sort((a, b) => a.validAt.localeCompare(b.validAt));
+    return sorted.length ? [[locationId, sorted] as const] : [];
   }));
-  const unique = new Map(events.map((event) => [event.validAt, event]));
-  return Array.from(unique.values()).sort((a, b) => a.validAt.localeCompare(b.validAt));
 }
 
 export function interpolateCwaTide(events: CwaTideEvent[], validAt: string): InterpolatedTide | null {
@@ -370,8 +378,15 @@ export function interpolateCwaTide(events: CwaTideEvent[], validAt: string): Int
   };
 }
 
-export function buildCwaSnapshots(wavePoints: CwaWavePoint[], tideEvents: CwaTideEvent[]): CwaSnapshot[] {
+export function buildCwaSnapshots(
+  wavePoints: CwaWavePoint[],
+  tideEventsByLocation: Map<string, CwaTideEvent[]>,
+): CwaSnapshot[] {
   return wavePoints.map((point) => {
+    const locationId = CWA_TIDE_LOCATION_BY_SPOT_ID[
+      point.spot.id as keyof typeof CWA_TIDE_LOCATION_BY_SPOT_ID
+    ];
+    const tideEvents = locationId ? tideEventsByLocation.get(locationId) ?? [] : [];
     const tide = interpolateCwaTide(tideEvents, point.validAt);
     return cwaSnapshotSchema.parse({
       spotId: point.spot.id,
@@ -391,9 +406,9 @@ export function buildCwaSnapshots(wavePoints: CwaWavePoint[], tideEvents: CwaTid
       tideState: tide?.state ?? null,
       provenance: {
         wave: { dataset: "F-A0020-001", identifiers: point.sourceIdentifiers },
-        tide: tide ? {
+        tide: tide && locationId ? {
           dataset: "F-A0021-001",
-          locationId: CWA_TIDE_LOCATION_ID,
+          locationId,
           datum: "AboveLocalMSL",
           units: "m",
           interpolation: "half-cosine-between-adjacent-extrema",
@@ -403,13 +418,15 @@ export function buildCwaSnapshots(wavePoints: CwaWavePoint[], tideEvents: CwaTid
   });
 }
 
-async function fetchCwaTideEvents(apiKey: string, fetchImpl: typeof fetch): Promise<CwaTideEvent[]> {
+async function fetchCwaTideEvents(
+  apiKey: string,
+  fetchImpl: typeof fetch,
+): Promise<Map<string, CwaTideEvent[]>> {
   const url = new URL(CWA_TIDE_URL);
-  url.searchParams.set("Authorization", apiKey);
   url.searchParams.set("format", "JSON");
-  url.searchParams.set("LocationId", CWA_TIDE_LOCATION_ID);
+  url.searchParams.set("LocationId", CWA_TIDE_LOCATION_IDS.join(","));
   const response = await fetchImpl(url, {
-    headers: { accept: "application/json" },
+    headers: { accept: "application/json", Authorization: apiKey },
     signal: AbortSignal.timeout(30_000),
   });
   if (!response.ok) throw new Error(`CWA tide returned HTTP ${response.status}`);
@@ -479,7 +496,7 @@ export async function fetchCwaSnapshots(
     fetchCwaTideEvents(apiKey, fetchImpl)
       .then((events) => ({ events, error: null as string | null }))
       .catch((error: unknown) => ({
-        events: [] as CwaTideEvent[],
+        events: new Map<string, CwaTideEvent[]>(),
         error: redactMessage(error, [apiKey]),
       })),
   ]);
@@ -499,6 +516,11 @@ export async function fetchCwaSnapshots(
       firstValidAt: valid[0] ?? null,
       lastValidAt: valid.at(-1) ?? null,
     },
-    warnings: tideResult.error ? [`CWA tide enrichment skipped: ${tideResult.error}`] : [],
+    warnings: [
+      ...(tideResult.error ? [`CWA tide enrichment skipped: ${tideResult.error}`] : []),
+      ...(!tideResult.error ? CWA_TIDE_LOCATION_IDS
+        .filter((locationId) => !tideResult.events.has(locationId))
+        .map((locationId) => `CWA tide response omitted approved location ${locationId}`) : []),
+    ],
   };
 }
