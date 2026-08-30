@@ -1,0 +1,31 @@
+name: Surf Video Share CWA Ingestor
+version: "0.1.0"
+slug: surf_video_share_cwa_ingestor
+description: Safely parses official CWA wave forecasts locally and pushes normalized snapshots to the Worker.
+url: https://github.com/n8886919/surf-video-share-tw-cwa-ingestor
+arch:
+  - aarch64
+  - amd64
+boot: auto
+startup: application
+init: false
+stage: experimental
+backup: cold
+host_network: false
+host_ipc: false
+host_dbus: false
+host_pid: false
+host_uts: false
+ingress: false
+homeassistant_api: false
+hassio_api: false
+docker_api: false
+full_access: false
+options:
+  worker_base_url: https://surf-video-share-tw.nolanasd123.workers.dev
+  cwa_api_key: null
+  ingestion_secret: null
+schema:
+  worker_base_url: url
+  cwa_api_key: password
+  ingestion_secret: password

@@ -1,0 +1,10 @@
+configuration:
+  worker_base_url:
+    name: Worker base URL
+    description: HTTPS origin of the Surf Video Share Worker. Do not include a path or query string.
+  cwa_api_key:
+    name: CWA authorization key
+    description: CWA Open Data authorization key. It is read only from this app's protected options.
+  ingestion_secret:
+    name: Forecast ingestion secret
+    description: High-entropy secret shared only with the Worker's FORECAST_INGESTION_SECRET.
