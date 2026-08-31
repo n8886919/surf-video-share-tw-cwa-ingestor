@@ -1,5 +1,7 @@
 # Surf Video Share CWA Ingestor
 
+![Surf Video Share logo](cwa_ingestor/logo.png)
+
 Home Assistant App repository for the trusted CWA compute adapter used by
 `surf-video-share-tw`.
 
