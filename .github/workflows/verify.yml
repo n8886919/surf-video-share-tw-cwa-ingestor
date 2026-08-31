@@ -29,15 +29,17 @@ jobs:
       - name: Build and inspect the Home Assistant aarch64 image
         working-directory: source/cwa_ingestor
         run: |
+          APP_VERSION="$(node -p "require('./package.json').version")"
+          grep -Fx "version: \"${APP_VERSION}\"" config.yaml
           docker buildx build \
             --platform linux/arm64 \
             --build-arg BUILD_FROM=ghcr.io/home-assistant/aarch64-base:3.24 \
             --build-arg BUILD_ARCH=aarch64 \
-            --build-arg BUILD_VERSION=0.3.0 \
+            --build-arg BUILD_VERSION="${APP_VERSION}" \
             --load \
-            --tag cwa-ingestor:0.3.0-arm64 \
+            --tag "cwa-ingestor:${APP_VERSION}-arm64" \
             .
-          test "$(docker image inspect --format '{{.Architecture}}' cwa-ingestor:0.3.0-arm64)" = "arm64"
-          test "$(docker image inspect --format '{{index .Config.Labels "io.hass.arch"}}' cwa-ingestor:0.3.0-arm64)" = "aarch64"
-          test "$(docker image inspect --format '{{index .Config.Labels "io.hass.type"}}' cwa-ingestor:0.3.0-arm64)" = "app"
-          test "$(docker image inspect --format '{{index .Config.Labels "io.hass.version"}}' cwa-ingestor:0.3.0-arm64)" = "0.3.0"
+          test "$(docker image inspect --format '{{.Architecture}}' "cwa-ingestor:${APP_VERSION}-arm64")" = "arm64"
+          test "$(docker image inspect --format '{{index .Config.Labels "io.hass.arch"}}' "cwa-ingestor:${APP_VERSION}-arm64")" = "aarch64"
+          test "$(docker image inspect --format '{{index .Config.Labels "io.hass.type"}}' "cwa-ingestor:${APP_VERSION}-arm64")" = "app"
+          test "$(docker image inspect --format '{{index .Config.Labels "io.hass.version"}}' "cwa-ingestor:${APP_VERSION}-arm64")" = "${APP_VERSION}"
