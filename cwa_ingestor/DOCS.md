@@ -26,11 +26,30 @@ and warning/error codes. They never include options, authorization headers,
 signatures, request bodies, or query strings. A `stale_success` warning means no
 successful ingestion has completed for more than seven hours.
 
-The App requests the six approved F-A0021-001 locations once per run and maps
-them to the eight active spots: `O00400` for 烏石港／雙獅, `10002030` for 無尾,
-`O01200` for 蜜月灣, `O01300` for 金樽／北東河, `B02400` for 漁光島, and
-`O00700` for 南灣. The CWA key is sent only in the HTTPS Authorization header.
-The Worker independently enforces the same mapping before any D1 write.
+The App requests the 16 approved F-A0021-001 locations once per run and maps
+them to all 18 active spots through the reviewed nearest-location allowlist:
+
+| LocationId | Active spot |
+|---|---|
+| `10002040` | 烏石港 |
+| `O00400` | 雙獅 |
+| `10002030` | 無尾 |
+| `I02200` | 蜜月灣 |
+| `I00900` | 金樽、北東河 |
+| `I00500` | 漁光島 |
+| `O00700` | 南灣 |
+| `O00100` | 中角灣 |
+| `I03800` | 福隆 |
+| `I06100` | 環保 |
+| `10015010` | 北濱 |
+| `A00200` | 磯崎 |
+| `10013330` | 九棚 |
+| `O01000` | 佳樂水 |
+| `10005020` | 松柏港 |
+| `A01500` | 翡翠灣、萬里 |
+
+The CWA key is sent only in the HTTPS Authorization header. The Worker
+independently enforces the same mapping before any D1 write.
 
 ## Installation and update
 
@@ -51,13 +70,14 @@ does not contain any historical ZIP archive.
 
 ### Worker compatibility
 
-App `0.2.0` sends Worker contract `cwa-forecast-ingestion-v2`. Both repositories
+App `0.3.0` sends Worker contract `cwa-forecast-ingestion-v3`. Both repositories
 generate JSON Schema from the live Zod validator and assert fingerprint
-`24eeaed68e8e358880f43c127dde715af5c36b7af80a5667d58a67481d01c296`, plus
+`d4dc3b42665cb89621c2c68090622ab51b1a1dc20c25fbbe1224ee53206914af`, plus
 tide-mapping fingerprint
-`217b188f9b366cb50aad2566135c5c04cab60c593d5a553306b33ba25714a5e3`
-and the refinements that JSON Schema cannot encode. The Worker temporarily
-accepts persisted v1 batches, so deploy the Worker before updating the App.
+`c5d3c97ea5f0f391bd808ff6fba3983ea0e59e47248a5800ad4592fe26e7cd16`
+and the refinements that JSON Schema cannot encode. The App can retry persisted
+v1/v2 batches, and the Worker temporarily accepts both older versions, so
+deploy the backward-compatible Worker before updating the App.
 Any request-field, bound, or mapping change must update both repositories as a
 coordinated versioned release.
 

@@ -3,13 +3,14 @@ import {
   CWA_MODEL,
   CWA_PROVIDER,
   CWA_TIDE_LOCATION_IDS,
+  CWA_TIDE_LOCATION_IDS_V2,
   INGESTION_BATCH_SIZE,
 } from "./constants.js";
 
 export const CWA_FORECAST_INGESTION_CONTRACT = {
-  version: "cwa-forecast-ingestion-v2",
-  jsonSchemaSha256: "24eeaed68e8e358880f43c127dde715af5c36b7af80a5667d58a67481d01c296",
-  tideMappingSha256: "217b188f9b366cb50aad2566135c5c04cab60c593d5a553306b33ba25714a5e3",
+  version: "cwa-forecast-ingestion-v3",
+  jsonSchemaSha256: "d4dc3b42665cb89621c2c68090622ab51b1a1dc20c25fbbe1224ee53206914af",
+  tideMappingSha256: "c5d3c97ea5f0f391bd808ff6fba3983ea0e59e47248a5800ad4592fe26e7cd16",
 } as const;
 
 const isoInstantSchema = z.string().datetime({ offset: true });
@@ -24,7 +25,7 @@ export const forecastSpotSchema = z.object({
 }).strict();
 
 export const forecastSpotsResponseSchema = z.object({
-  spots: z.array(forecastSpotSchema).min(1).max(10),
+  spots: z.array(forecastSpotSchema).min(1).max(20),
 }).strict();
 
 const waveIdentifiersSchema = z.object({
@@ -36,6 +37,14 @@ const waveIdentifiersSchema = z.object({
 const tideProvenanceV1Schema = z.object({
   dataset: z.literal("F-A0021-001"),
   locationId: z.literal("O00400"),
+  datum: z.literal("AboveLocalMSL"),
+  units: z.literal("m"),
+  interpolation: z.literal("half-cosine-between-adjacent-extrema"),
+}).strict();
+
+const tideProvenanceV2Schema = z.object({
+  dataset: z.literal("F-A0021-001"),
+  locationId: z.enum(CWA_TIDE_LOCATION_IDS_V2),
   datum: z.literal("AboveLocalMSL"),
   units: z.literal("m"),
   interpolation: z.literal("half-cosine-between-adjacent-extrema"),
@@ -101,18 +110,34 @@ export const cwaSnapshotSchema = cwaSnapshotBaseSchema.extend({
   { message: "At least one CWA wave metric is required" },
 );
 
+export const cwaV2SnapshotSchema = cwaSnapshotBaseSchema.extend({
+  provenance: z.object({
+    wave: waveProvenanceSchema,
+    tide: tideProvenanceV2Schema.nullable(),
+  }).strict(),
+}).strict().refine(
+  hasWaveMetric,
+  { message: "At least one CWA wave metric is required" },
+);
+
 export const cwaV1IngestionBatchSchema = z.object({
   version: z.literal(1),
   snapshots: z.array(cwaV1SnapshotSchema).min(1).max(INGESTION_BATCH_SIZE),
 }).strict();
 
-export const cwaIngestionBatchSchema = z.object({
+export const cwaV2IngestionBatchSchema = z.object({
   version: z.literal(2),
+  snapshots: z.array(cwaV2SnapshotSchema).min(1).max(INGESTION_BATCH_SIZE),
+}).strict();
+
+export const cwaIngestionBatchSchema = z.object({
+  version: z.literal(3),
   snapshots: z.array(cwaSnapshotSchema).min(1).max(INGESTION_BATCH_SIZE),
 }).strict();
 
 export const acceptedCwaIngestionBatchSchema = z.union([
   cwaV1IngestionBatchSchema,
+  cwaV2IngestionBatchSchema,
   cwaIngestionBatchSchema,
 ]);
 

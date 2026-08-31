@@ -5,6 +5,7 @@ import {
   CWA_FORECAST_INGESTION_CONTRACT,
   acceptedCwaIngestionBatchSchema,
   cwaIngestionBatchSchema,
+  cwaV2IngestionBatchSchema,
 } from "../src/contract.js";
 import { CWA_TIDE_LOCATION_BY_SPOT_ID } from "../src/constants.js";
 
@@ -32,7 +33,7 @@ function snapshot() {
       },
       tide: {
         dataset: "F-A0021-001" as const,
-        locationId: "O00400" as const,
+        locationId: "10002040" as const,
         datum: "AboveLocalMSL" as const,
         units: "m" as const,
         interpolation: "half-cosine-between-adjacent-extrema" as const,
@@ -42,7 +43,7 @@ function snapshot() {
 }
 
 describe("Worker CWA ingestion contract parity", () => {
-  it("pins the complete v2 structural contract and tide mapping fingerprints", () => {
+  it("pins the complete v3 structural contract and tide mapping fingerprints", () => {
     const fingerprint = createHash("sha256")
       .update(JSON.stringify(z.toJSONSchema(cwaIngestionBatchSchema)))
       .digest("hex");
@@ -50,28 +51,49 @@ describe("Worker CWA ingestion contract parity", () => {
       .update(JSON.stringify(CWA_TIDE_LOCATION_BY_SPOT_ID))
       .digest("hex");
     expect(CWA_FORECAST_INGESTION_CONTRACT).toEqual({
-      version: "cwa-forecast-ingestion-v2",
+      version: "cwa-forecast-ingestion-v3",
       jsonSchemaSha256: fingerprint,
       tideMappingSha256: tideMappingFingerprint,
     });
   });
 
   it("pins refinements that JSON Schema cannot represent", () => {
-    expect(cwaIngestionBatchSchema.safeParse({ version: 2, snapshots: [snapshot()] }).success).toBe(true);
+    expect(cwaIngestionBatchSchema.safeParse({ version: 3, snapshots: [snapshot()] }).success).toBe(true);
     expect(cwaIngestionBatchSchema.safeParse({
-      version: 2,
+      version: 3,
       snapshots: [{ ...snapshot(), leadHours: 4 }],
     }).success).toBe(false);
     expect(cwaIngestionBatchSchema.safeParse({
-      version: 2,
+      version: 3,
       snapshots: [{ ...snapshot(), waveHeight: null, waveDirection: null, wavePeriod: null }],
     }).success).toBe(false);
   });
 
   it("keeps persisted v1 batches valid until they are retried", () => {
+    const legacy = snapshot();
     expect(acceptedCwaIngestionBatchSchema.safeParse({
       version: 1,
-      snapshots: [snapshot()],
+      snapshots: [{
+        ...legacy,
+        provenance: {
+          ...legacy.provenance,
+          tide: { ...legacy.provenance.tide, locationId: "O00400" },
+        },
+      }],
+    }).success).toBe(true);
+  });
+
+  it("keeps persisted v2 batches valid until they are retried", () => {
+    const legacy = snapshot();
+    expect(cwaV2IngestionBatchSchema.safeParse({
+      version: 2,
+      snapshots: [{
+        ...legacy,
+        provenance: {
+          ...legacy.provenance,
+          tide: { ...legacy.provenance.tide, locationId: "O00400" },
+        },
+      }],
     }).success).toBe(true);
   });
 });

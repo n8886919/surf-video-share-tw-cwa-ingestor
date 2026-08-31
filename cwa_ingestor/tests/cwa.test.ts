@@ -27,7 +27,7 @@ describe("CWA parser", () => {
   it("preserves tide interpolation and both official provenance datasets", () => {
     const points = parseCwaWaveArchive(cwaWaveFixture(), [testSpot]).points;
     const tides = parseCwaTidePayload(tideFixture());
-    expect(interpolateCwaTide(tides.get("O00400") ?? [], "2026-08-25T03:00:00.000Z")).toEqual({
+    expect(interpolateCwaTide(tides.get("10002040") ?? [], "2026-08-25T03:00:00.000Z")).toEqual({
       heightMeters: 0.7,
       slopeMetersPerHour: 0.2618,
       state: "rising",
@@ -37,7 +37,7 @@ describe("CWA parser", () => {
       model: "cwa-wave-f-a0020-001",
       provenance: {
         wave: { dataset: "F-A0020-001" },
-        tide: { dataset: "F-A0021-001", locationId: "O00400" },
+        tide: { dataset: "F-A0021-001", locationId: "10002040" },
       },
     });
   });
@@ -49,7 +49,7 @@ describe("CWA parser", () => {
       spot: { ...basePoint.spot, id: spotId },
     }));
     const snapshots = buildCwaSnapshots(points, parseCwaTidePayload(tideFixture()));
-    expect(snapshots).toHaveLength(8);
+    expect(snapshots).toHaveLength(18);
     expect(snapshots.map((snapshot) => [snapshot.spotId, snapshot.provenance.tide?.locationId]))
       .toEqual(Object.entries(CWA_TIDE_LOCATION_BY_SPOT_ID));
     expect(snapshots.every((snapshot) => snapshot.tideHeight === 0.7)).toBe(true);

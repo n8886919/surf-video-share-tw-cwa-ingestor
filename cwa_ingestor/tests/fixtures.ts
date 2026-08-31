@@ -1,4 +1,5 @@
 import { strToU8, zipSync } from "fflate";
+import { CWA_TIDE_LOCATION_IDS } from "../src/constants.js";
 
 export const testSpot = {
   id: "spot_wushi-harbor-north",
@@ -60,14 +61,7 @@ export function currentCwaWaveFixture(): Uint8Array {
 }
 
 export function tideFixture() {
-  const locations = [
-    ["O00400", 24.88, 121.846],
-    ["10002030", 24.5925, 121.8669],
-    ["O01200", 24.933, 121.886],
-    ["O01300", 22.956, 121.295],
-    ["B02400", 22.9699, 120.1525],
-    ["O00700", 21.959, 120.761],
-  ] as const;
+  const locations = CWA_TIDE_LOCATION_IDS.map((locationId) => [locationId, 0, 0] as const);
   return {
     records: {
       TideForecasts: locations.map(([LocationId, Latitude, Longitude]) => ({

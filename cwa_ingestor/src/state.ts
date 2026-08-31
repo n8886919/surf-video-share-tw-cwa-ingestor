@@ -69,7 +69,7 @@ export function pendingBatches(snapshots: CwaIngestionBatch["snapshots"]): Accep
   const batches: CwaIngestionBatch[] = [];
   for (let offset = 0; offset < snapshots.length; offset += 5) {
     batches.push(cwaIngestionBatchSchema.parse({
-      version: 2,
+      version: 3,
       snapshots: snapshots.slice(offset, offset + 5),
     }));
   }
