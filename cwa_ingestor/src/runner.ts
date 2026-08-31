@@ -78,6 +78,10 @@ export class CwaRunner {
       const waitMs = Math.max(0, runAt.getTime() - Date.now());
       if (waitMs) await delay(waitMs);
       try {
+        structuredLog("info", "cwa_ingestion_started", {
+          attempt: consecutiveFailures + 1,
+          previousFailures: consecutiveFailures,
+        });
         const result = await this.runOnce();
         consecutiveFailures = 0;
         structuredLog("info", "cwa_ingestion_complete", { ...result });

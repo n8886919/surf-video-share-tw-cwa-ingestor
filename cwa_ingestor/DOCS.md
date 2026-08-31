@@ -21,10 +21,14 @@ and `18:20` UTC. Transient failures use bounded exponential backoff. `/data`
 contains only atomic JSON state and small normalized batches awaiting retry;
 the complete CWA ZIP is never persisted.
 
-Structured logs report attempts, inserted/duplicate counts, upstream run time,
-and warning/error codes. They never include options, authorization headers,
-signatures, request bodies, or query strings. A `stale_success` warning means no
-successful ingestion has completed for more than seven hours.
+Single-line logs begin with an explicit `Asia/Taipei` timestamp, a readable
+description, and a stable event code in brackets. They report when an ingestion
+attempt starts, inserted/duplicate counts, upstream run time, retry delay, and
+warning/error details. All timestamps use local Taipei time. Validation errors
+are condensed instead of printing escaped JSON.
+Logs never include options, authorization headers, signatures, request bodies,
+or query strings. A `stale_success` warning means no successful ingestion has
+completed for more than seven hours.
 
 The App requests the 16 approved F-A0021-001 locations once per run and maps
 them to all 18 active spots through the reviewed nearest-location allowlist:
@@ -70,7 +74,7 @@ does not contain any historical ZIP archive.
 
 ### Worker compatibility
 
-App `0.3.0` sends Worker contract `cwa-forecast-ingestion-v3`. Both repositories
+App `0.3.1` sends Worker contract `cwa-forecast-ingestion-v3`. Both repositories
 generate JSON Schema from the live Zod validator and assert fingerprint
 `d4dc3b42665cb89621c2c68090622ab51b1a1dc20c25fbbe1224ee53206914af`, plus
 tide-mapping fingerprint

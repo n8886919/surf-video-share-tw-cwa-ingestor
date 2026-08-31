@@ -3,7 +3,7 @@ import { loadAppVersion, parseAppVersion } from "../src/version.js";
 
 describe("app version", () => {
   it("loads the version from the package copied into the runtime image", async () => {
-    await expect(loadAppVersion()).resolves.toBe("0.3.0");
+    await expect(loadAppVersion()).resolves.toBe("0.3.1");
   });
 
   it("fails closed when package metadata has no usable version", () => {
