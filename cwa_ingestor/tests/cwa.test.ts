@@ -49,7 +49,7 @@ describe("CWA parser", () => {
       spot: { ...basePoint.spot, id: spotId },
     }));
     const snapshots = buildCwaSnapshots(points, parseCwaTidePayload(tideFixture()));
-    expect(snapshots).toHaveLength(18);
+    expect(snapshots).toHaveLength(19);
     expect(snapshots.map((snapshot) => [snapshot.spotId, snapshot.provenance.tide?.locationId]))
       .toEqual(Object.entries(CWA_TIDE_LOCATION_BY_SPOT_ID));
     expect(snapshots.every((snapshot) => snapshot.tideHeight === 0.7)).toBe(true);

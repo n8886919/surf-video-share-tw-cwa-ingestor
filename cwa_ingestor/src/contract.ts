@@ -3,14 +3,15 @@ import {
   CWA_MODEL,
   CWA_PROVIDER,
   CWA_TIDE_LOCATION_IDS,
+  CWA_TIDE_LOCATION_IDS_V3,
   CWA_TIDE_LOCATION_IDS_V2,
   INGESTION_BATCH_SIZE,
 } from "./constants.js";
 
 export const CWA_FORECAST_INGESTION_CONTRACT = {
-  version: "cwa-forecast-ingestion-v3",
-  jsonSchemaSha256: "d4dc3b42665cb89621c2c68090622ab51b1a1dc20c25fbbe1224ee53206914af",
-  tideMappingSha256: "c5d3c97ea5f0f391bd808ff6fba3983ea0e59e47248a5800ad4592fe26e7cd16",
+  version: "cwa-forecast-ingestion-v4",
+  jsonSchemaSha256: "e09dbdb3ec07aa1d865cb2654181d5b7b2c6b42542cc308d0d9c936e9e5128f0",
+  tideMappingSha256: "196d6e0a139fe9d2eab525232e801ef5613a01b1c064f2e28b273e2d4177eb4e",
 } as const;
 
 const isoInstantSchema = z.string().datetime({ offset: true });
@@ -45,6 +46,14 @@ const tideProvenanceV1Schema = z.object({
 const tideProvenanceV2Schema = z.object({
   dataset: z.literal("F-A0021-001"),
   locationId: z.enum(CWA_TIDE_LOCATION_IDS_V2),
+  datum: z.literal("AboveLocalMSL"),
+  units: z.literal("m"),
+  interpolation: z.literal("half-cosine-between-adjacent-extrema"),
+}).strict();
+
+const tideProvenanceV3Schema = z.object({
+  dataset: z.literal("F-A0021-001"),
+  locationId: z.enum(CWA_TIDE_LOCATION_IDS_V3),
   datum: z.literal("AboveLocalMSL"),
   units: z.literal("m"),
   interpolation: z.literal("half-cosine-between-adjacent-extrema"),
@@ -100,6 +109,16 @@ export const cwaV1SnapshotSchema = cwaSnapshotBaseSchema.extend({
   { message: "At least one CWA wave metric is required" },
 );
 
+export const cwaV3SnapshotSchema = cwaSnapshotBaseSchema.extend({
+  provenance: z.object({
+    wave: waveProvenanceSchema,
+    tide: tideProvenanceV3Schema.nullable(),
+  }).strict(),
+}).strict().refine(
+  hasWaveMetric,
+  { message: "At least one CWA wave metric is required" },
+);
+
 export const cwaSnapshotSchema = cwaSnapshotBaseSchema.extend({
   provenance: z.object({
     wave: waveProvenanceSchema,
@@ -130,14 +149,20 @@ export const cwaV2IngestionBatchSchema = z.object({
   snapshots: z.array(cwaV2SnapshotSchema).min(1).max(INGESTION_BATCH_SIZE),
 }).strict();
 
-export const cwaIngestionBatchSchema = z.object({
+export const cwaV3IngestionBatchSchema = z.object({
   version: z.literal(3),
+  snapshots: z.array(cwaV3SnapshotSchema).min(1).max(INGESTION_BATCH_SIZE),
+}).strict();
+
+export const cwaIngestionBatchSchema = z.object({
+  version: z.literal(4),
   snapshots: z.array(cwaSnapshotSchema).min(1).max(INGESTION_BATCH_SIZE),
 }).strict();
 
 export const acceptedCwaIngestionBatchSchema = z.union([
   cwaV1IngestionBatchSchema,
   cwaV2IngestionBatchSchema,
+  cwaV3IngestionBatchSchema,
   cwaIngestionBatchSchema,
 ]);
 

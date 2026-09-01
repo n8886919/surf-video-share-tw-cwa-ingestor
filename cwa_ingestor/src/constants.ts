@@ -21,12 +21,12 @@ export const CWA_TIDE_LOCATION_BY_SPOT_ID_V2 = {
   "spot_nanwan": "O00700",
 } as const satisfies Record<string, typeof CWA_TIDE_LOCATION_IDS_V2[number]>;
 
-export const CWA_TIDE_LOCATION_IDS = [
+export const CWA_TIDE_LOCATION_IDS_V3 = [
   "10002040", "O00400", "10002030", "I02200", "I00900", "I00500",
   "O00700", "O00100", "I03800", "I06100", "10015010", "A00200",
   "10013330", "O01000", "10005020", "A01500",
 ] as const;
-export const CWA_TIDE_LOCATION_BY_SPOT_ID = {
+export const CWA_TIDE_LOCATION_BY_SPOT_ID_V3 = {
   "spot_wushi-harbor-north": "10002040",
   "spot_double-lions": "O00400",
   "spot_suao-wuwei-harbor": "10002030",
@@ -45,6 +45,15 @@ export const CWA_TIDE_LOCATION_BY_SPOT_ID = {
   "spot_songbai-harbor": "10005020",
   "spot_green-bay": "A01500",
   "spot_wanli": "A01500",
+} as const satisfies Record<string, typeof CWA_TIDE_LOCATION_IDS_V3[number]>;
+
+export const CWA_TIDE_LOCATION_IDS = [
+  ...CWA_TIDE_LOCATION_IDS_V3,
+  "I04100",
+] as const;
+export const CWA_TIDE_LOCATION_BY_SPOT_ID = {
+  ...CWA_TIDE_LOCATION_BY_SPOT_ID_V3,
+  "spot_waipu-fishing-harbor": "I04100",
 } as const satisfies Record<string, typeof CWA_TIDE_LOCATION_IDS[number]>;
 
 export const MAX_ARCHIVE_BYTES = 96 * 1024 * 1024;

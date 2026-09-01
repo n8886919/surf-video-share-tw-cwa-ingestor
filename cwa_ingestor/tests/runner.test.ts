@@ -62,8 +62,8 @@ describe("runner recovery", () => {
     expect(result).toEqual({ attempted: 1, inserted: 1, duplicates: 0, resumedPending: true });
     expect(waveFetches).toBe(1);
     expect(submittedContracts).toEqual([
-      { version: 3, tideLocationId: "10002040" },
-      { version: 3, tideLocationId: "10002040" },
+      { version: 4, tideLocationId: "10002040" },
+      { version: 4, tideLocationId: "10002040" },
     ]);
     const restored = await new StateRepository(directory).load();
     expect(restored.pendingBatches).toEqual([]);
