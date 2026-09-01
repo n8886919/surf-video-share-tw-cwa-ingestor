@@ -26,18 +26,28 @@ export class CwaRunner {
 
   async runOnce(now = new Date()): Promise<RunResult> {
     const state = await this.stateRepository.load();
-    const resumedPending = state.pendingBatches.length > 0;
+    const resumedPending = state.pendingBatches.length > 0 || state.completionPending !== null;
     state.lastAttemptAt = now.toISOString();
     await this.stateRepository.save(state);
 
     if (!resumedPending) {
       const spots = await this.client.listSpots();
       const cwa = await fetchCwaSnapshots(spots, this.config.cwaApiKey, this.fetchImpl);
+      if (!cwa.diagnostics.issuedAt || !cwa.diagnostics.modelRunAt) {
+        throw new Error("CWA diagnostics are missing the completed run timestamps");
+      }
       state.pendingBatches = pendingBatches(cwa.snapshots);
       state.lastIssuedAt = cwa.diagnostics.issuedAt;
       state.lastModelRunAt = cwa.diagnostics.modelRunAt;
       state.firstValidAt = cwa.diagnostics.firstValidAt;
       state.lastValidAt = cwa.diagnostics.lastValidAt;
+      state.completionPending = {
+        version: 1,
+        provider: "cwa",
+        model: "cwa-wave-f-a0020-001",
+        issuedAt: cwa.diagnostics.issuedAt,
+        modelRunAt: cwa.diagnostics.modelRunAt,
+      };
       await this.stateRepository.save(state);
       structuredLog("info", "cwa_fetch_complete", {
         spots: spots.length,
@@ -64,6 +74,11 @@ export class CwaRunner {
       aggregate.inserted += result.inserted;
       aggregate.duplicates += result.duplicates;
       state.pendingBatches.shift();
+      await this.stateRepository.save(state);
+    }
+    if (state.completionPending) {
+      await this.client.completeCwa(state.completionPending);
+      state.completionPending = null;
       await this.stateRepository.save(state);
     }
     state.lastSuccessAt = new Date().toISOString();

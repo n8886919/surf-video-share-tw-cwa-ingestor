@@ -8,6 +8,14 @@ import {
   type CwaIngestionBatch,
 } from "./contract.js";
 
+const completionPendingSchema = z.object({
+  version: z.literal(1),
+  provider: z.literal("cwa"),
+  model: z.literal("cwa-wave-f-a0020-001"),
+  issuedAt: z.string().datetime({ offset: true }),
+  modelRunAt: z.string().datetime({ offset: true }),
+}).strict();
+
 const stateSchema = z.object({
   version: z.literal(1),
   lastAttemptAt: z.string().datetime({ offset: true }).nullable(),
@@ -16,7 +24,8 @@ const stateSchema = z.object({
   lastModelRunAt: z.string().datetime({ offset: true }).nullable(),
   firstValidAt: z.string().datetime({ offset: true }).nullable(),
   lastValidAt: z.string().datetime({ offset: true }).nullable(),
-  pendingBatches: z.array(acceptedCwaIngestionBatchSchema).max(32),
+  pendingBatches: z.array(acceptedCwaIngestionBatchSchema).max(128),
+  completionPending: completionPendingSchema.nullable().default(null),
 }).strict();
 
 export type RunnerState = z.infer<typeof stateSchema>;
@@ -31,6 +40,7 @@ export function emptyState(): RunnerState {
     firstValidAt: null,
     lastValidAt: null,
     pendingBatches: [],
+    completionPending: null,
   };
 }
 

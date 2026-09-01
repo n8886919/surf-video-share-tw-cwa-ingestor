@@ -21,6 +21,13 @@ and `18:20` UTC. Transient failures use bounded exponential backoff. `/data`
 contains only atomic JSON state and small normalized batches awaiting retry;
 the complete CWA ZIP is never persisted.
 
+App `0.5.0` persists up to 128 small batches, enough for nineteen spots across
+all twenty-five 0–72-hour leads. After all row batches are accepted, it sends a
+separately signed completion request. The Worker verifies coverage for every
+active spot and sends one owner LINE message using Worker-only Messaging API
+credentials. A failed completion message remains pending and is retried without
+downloading the ZIP or resubmitting forecast rows.
+
 Single-line logs begin with an explicit `Asia/Taipei` timestamp, a readable
 description, and a stable event code in brackets. They report when an ingestion
 attempt starts, inserted/duplicate counts, upstream run time, retry delay, and
@@ -75,7 +82,7 @@ does not contain any historical ZIP archive.
 
 ### Worker compatibility
 
-App `0.4.0` sends Worker contract `cwa-forecast-ingestion-v4`. Both repositories
+App `0.5.0` sends Worker contract `cwa-forecast-ingestion-v4`. Both repositories
 generate JSON Schema from the live Zod validator and assert fingerprint
 `e09dbdb3ec07aa1d865cb2654181d5b7b2c6b42542cc308d0d9c936e9e5128f0`, plus
 tide-mapping fingerprint

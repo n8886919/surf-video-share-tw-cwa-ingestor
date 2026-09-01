@@ -19,6 +19,7 @@ describe("runner recovery", () => {
     const archive = cwaWaveFixture();
     let waveFetches = 0;
     let ingestionPosts = 0;
+    let completionPosts = 0;
     const submittedContracts: Array<{ version: number; tideLocationId: string | null }> = [];
     const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {
       const request = input instanceof Request ? input : new Request(input, init);
@@ -46,6 +47,10 @@ describe("runner recovery", () => {
         }
         return Response.json({ attempted: body.snapshots.length, inserted: body.snapshots.length, duplicates: 0 });
       }
+      if (url.pathname.endsWith("/forecast-ingestion/cwa/complete")) {
+        completionPosts += 1;
+        return Response.json({ notification: "sent" });
+      }
       throw new Error(`unexpected test path ${url.pathname}`);
     };
     const runner = new CwaRunner({
@@ -61,12 +66,65 @@ describe("runner recovery", () => {
     const result = await runner.runOnce(new Date("2026-08-30T00:01:00Z"));
     expect(result).toEqual({ attempted: 1, inserted: 1, duplicates: 0, resumedPending: true });
     expect(waveFetches).toBe(1);
+    expect(completionPosts).toBe(1);
     expect(submittedContracts).toEqual([
       { version: 4, tideLocationId: "10002040" },
       { version: 4, tideLocationId: "10002040" },
     ]);
     const restored = await new StateRepository(directory).load();
     expect(restored.pendingBatches).toEqual([]);
+    expect(restored.completionPending).toBeNull();
     expect(restored.lastSuccessAt).not.toBeNull();
+  });
+
+  it("retries only the completion notification after every snapshot is stored", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "cwa-runner-"));
+    directories.push(directory);
+    let waveFetches = 0;
+    let ingestionPosts = 0;
+    let completionPosts = 0;
+    const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      const url = new URL(request.url);
+      if (url.pathname.endsWith("/forecast-ingestion/spots")) {
+        return Response.json({ spots: [testSpot] });
+      }
+      if (url.pathname.includes("F-A0020-001")) {
+        waveFetches += 1;
+        return new Response(Uint8Array.from(cwaWaveFixture()).buffer, {
+          headers: { "content-type": "application/zip" },
+        });
+      }
+      if (url.pathname.includes("F-A0021-001")) return Response.json(tideFixture());
+      if (url.pathname.endsWith("/forecast-ingestion/cwa/complete")) {
+        completionPosts += 1;
+        return completionPosts === 1
+          ? Response.json({ error: "CWA_NOTIFICATION_FAILED" }, { status: 502 })
+          : Response.json({ notification: "sent" });
+      }
+      if (url.pathname.endsWith("/forecast-ingestion/cwa")) {
+        ingestionPosts += 1;
+        const body = JSON.parse(await request.text()) as { snapshots: unknown[] };
+        return Response.json({ attempted: body.snapshots.length, inserted: body.snapshots.length, duplicates: 0 });
+      }
+      throw new Error(`unexpected test path ${url.pathname}`);
+    };
+    const runner = new CwaRunner({
+      workerBaseUrl: "https://worker.example",
+      cwaApiKey: "cwa-test-key",
+      ingestionSecret: "i".repeat(32),
+      dataDirectory: directory,
+    }, fetchImpl as typeof fetch);
+
+    await expect(runner.runOnce()).rejects.toThrow("HTTP 502");
+    const pending = await new StateRepository(directory).load();
+    expect(pending.pendingBatches).toEqual([]);
+    expect(pending.completionPending).not.toBeNull();
+
+    const result = await runner.runOnce();
+    expect(result).toEqual({ attempted: 0, inserted: 0, duplicates: 0, resumedPending: true });
+    expect(waveFetches).toBe(1);
+    expect(ingestionPosts).toBe(1);
+    expect(completionPosts).toBe(2);
   });
 });

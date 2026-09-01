@@ -1,12 +1,16 @@
 import {
+  CWA_INGESTION_COMPLETE_PATH,
   CWA_INGESTION_PATH,
   SPOTS_PATH,
 } from "./constants.js";
 import {
   acceptedCwaIngestionBatchSchema,
+  cwaIngestionCompletionResultSchema,
+  cwaIngestionCompletionSchema,
   forecastSpotsResponseSchema,
   ingestionResultSchema,
   type AcceptedCwaIngestionBatch,
+  type CwaIngestionCompletion,
   type ForecastSpot,
   type IngestionResult,
 } from "./contract.js";
@@ -75,5 +79,12 @@ export class ForecastIngestionClient {
       throw new Error("Worker returned an inconsistent attempted count");
     }
     return result;
+  }
+
+  async completeCwa(completion: CwaIngestionCompletion): Promise<void> {
+    const validated = cwaIngestionCompletionSchema.parse(completion);
+    cwaIngestionCompletionResultSchema.parse(
+      await this.request(CWA_INGESTION_COMPLETE_PATH, "POST", JSON.stringify(validated)),
+    );
   }
 }

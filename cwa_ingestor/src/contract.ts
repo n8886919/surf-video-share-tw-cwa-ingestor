@@ -172,8 +172,21 @@ export const ingestionResultSchema = z.object({
   duplicates: z.number().int().nonnegative(),
 }).strict();
 
+export const cwaIngestionCompletionSchema = z.object({
+  version: z.literal(1),
+  provider: z.literal("cwa"),
+  model: z.literal("cwa-wave-f-a0020-001"),
+  issuedAt: z.string().datetime({ offset: true }),
+  modelRunAt: z.string().datetime({ offset: true }),
+}).strict();
+
+export const cwaIngestionCompletionResultSchema = z.object({
+  notification: z.enum(["sent", "duplicate"]),
+}).strict();
+
 export type ForecastSpot = z.infer<typeof forecastSpotSchema>;
 export type CwaSnapshot = z.infer<typeof cwaSnapshotSchema>;
 export type CwaIngestionBatch = z.infer<typeof cwaIngestionBatchSchema>;
 export type AcceptedCwaIngestionBatch = z.infer<typeof acceptedCwaIngestionBatchSchema>;
 export type IngestionResult = z.infer<typeof ingestionResultSchema>;
+export type CwaIngestionCompletion = z.infer<typeof cwaIngestionCompletionSchema>;

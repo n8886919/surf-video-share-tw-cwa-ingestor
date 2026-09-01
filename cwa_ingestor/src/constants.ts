@@ -63,4 +63,5 @@ export const INGESTION_BATCH_SIZE = 5;
 
 export const SPOTS_PATH = "/api/v1/internal/forecast-ingestion/spots";
 export const CWA_INGESTION_PATH = "/api/v1/internal/forecast-ingestion/cwa";
+export const CWA_INGESTION_COMPLETE_PATH = "/api/v1/internal/forecast-ingestion/cwa/complete";
 export const SIGNATURE_VERSION = "1";
